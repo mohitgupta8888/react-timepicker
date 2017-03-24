@@ -46,7 +46,7 @@ class TimePickerInput extends React.Component {
         var timePicker;
         if (this.state.open)
             timePicker = <TimePicker
-                timeFormat={"H:i"}
+                timeFormat={"h:i a"}
                 step="5"
                 value={this.state.value}
                 onSelect={this.onTimeSelect.bind(this) }

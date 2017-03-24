@@ -79,14 +79,16 @@ var TimePicker = function (_React$Component) {
         globalSettings = (0, _Settings.parseSettings)(settings);
 
         var timeOptions = _TimeParser2.default.prepareTimeOptions({ timeFormat: globalSettings.timeFormat, step: globalSettings.step, minTime: globalSettings.minTime, maxTime: globalSettings.maxTime });
+        var defaultIndex;
         if (props.value && !globalSettings.useSelect) {
             //this.formatValue();
-            var defaultIndex = _this.getDefaultIndex(timeOptions, props.value);
+            defaultIndex = _this.getDefaultIndex(timeOptions, props.value);
         }
 
         _this.state = {
             value: props.value,
-            timeOptions: timeOptions
+            timeOptions: timeOptions,
+            selectedIndex: defaultIndex
         };
 
         _this.keydownhandler = _this.keydownhandler.bind(_this);
@@ -187,8 +189,35 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'setSelectedIndexValue',
         value: function setSelectedIndexValue() {
+            var _this2 = this;
+
             var prettyTime = this.getSelectedIndexValue();
-            this.setTimeValue(prettyTime);
+            this.setState({ value: prettyTime }, function () {
+                _this2.setTimeValue(prettyTime);
+            });
+        }
+    }, {
+        key: 'changeSelectedIndex',
+        value: function changeSelectedIndex(change) {
+            if (!this.state.timeOptions) return;
+
+            var optionsLength = this.state.timeOptions.length;
+            if (optionsLength == 0) return;
+
+            var currentIndex = this.state.selectedIndex;
+            var newIndex = currentIndex + change;
+
+            if (change == -1) {
+                if (currentIndex <= 0) {
+                    newIndex = optionsLength - 1;
+                }
+            } else if (change == 1) {
+                if (currentIndex === optionsLength - 1) {
+                    newIndex = 0;
+                }
+            }
+
+            this.setState({ selectedIndex: newIndex });
         }
 
         /*
@@ -210,21 +239,13 @@ var TimePicker = function (_React$Component) {
 
                 case 38:
                     // up
-                    var newIndex = 0;
-                    if (typeof this.state.selectedIndex !== "undefined") newIndex = this.state.selectedIndex - 1;
-
-                    this.setState({ selectedIndex: newIndex });
-
+                    this.changeSelectedIndex(-1);
                     return false;
 
                 case 40:
                     // down
-                    var newIndex = 0;
-                    if (typeof this.state.selectedIndex !== "undefined") newIndex = this.state.selectedIndex + 1;
-
-                    this.setState({ selectedIndex: newIndex });
-
-                    return true;
+                    this.changeSelectedIndex(1);
+                    return false;
 
                 case 9:
                     //tab
@@ -289,7 +310,7 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'scrollToIndex',
         value: function scrollToIndex() {
-            if (!this.state.selectedIndex) return;
+            if (typeof this.state.selectedIndex !== "number") return;
 
             var timeOptions = this.state.timeOptions.length;
 
@@ -305,9 +326,10 @@ var TimePicker = function (_React$Component) {
         value: function componentDidMount() {
 
             //this.setSelected();
-
             window.addEventListener("keydown", this.keydownhandler);
             window.addEventListener("keyup", this.keyuphandler);
+
+            this.scrollToIndex();
         }
     }, {
         key: 'componentDidUpdate',
@@ -345,10 +367,10 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'onTimeSelect',
         value: function onTimeSelect(prettyTime, index) {
-            var _this2 = this;
+            var _this3 = this;
 
             this.setState({ selectedIndex: index, value: prettyTime }, function () {
-                _this2.setTimeValue(prettyTime);
+                _this3.setTimeValue(prettyTime);
             });
         }
     }, {
@@ -394,7 +416,7 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'render',
         value: function render() {
-            var _this3 = this;
+            var _this4 = this;
 
             if (!this.state.timeOptions instanceof Array) return null;
 
@@ -417,7 +439,7 @@ var TimePicker = function (_React$Component) {
                 reactControl = _react2.default.createElement(
                     'div',
                     { className: controlCss.join(" "), tabIndex: '-1', style: { position: "absolute" }, ref: function ref(container) {
-                            return _this3.container = container;
+                            return _this4.container = container;
                         } },
                     _react2.default.createElement(
                         'ul',

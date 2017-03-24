@@ -30,14 +30,16 @@ class TimePicker extends React.Component {
         globalSettings = parseSettings(settings);
 
         var timeOptions = TimeParser.prepareTimeOptions({ timeFormat: globalSettings.timeFormat, step: globalSettings.step, minTime: globalSettings.minTime, maxTime: globalSettings.maxTime })
+        var defaultIndex;
         if (props.value && !globalSettings.useSelect) {
             //this.formatValue();
-            var defaultIndex = this.getDefaultIndex(timeOptions, props.value);
+            defaultIndex = this.getDefaultIndex(timeOptions, props.value);
         }
 
         this.state = {
             value: props.value,
-            timeOptions: timeOptions
+            timeOptions: timeOptions,
+            selectedIndex: defaultIndex
         }
 
         this.keydownhandler = this.keydownhandler.bind(this);
@@ -137,7 +139,33 @@ class TimePicker extends React.Component {
 
     setSelectedIndexValue() {
         var prettyTime = this.getSelectedIndexValue();
-        this.setTimeValue(prettyTime);
+        this.setState({ value: prettyTime }, () => {
+            this.setTimeValue(prettyTime)
+        })
+    }
+
+    changeSelectedIndex(change) {
+        if (!this.state.timeOptions)
+            return;
+
+        var optionsLength = this.state.timeOptions.length;
+        if (optionsLength == 0)
+            return;
+
+        var currentIndex = this.state.selectedIndex;
+        var newIndex = currentIndex + change;
+
+        if (change == -1) {
+            if (currentIndex <= 0) {
+                newIndex = optionsLength - 1;
+            }
+        } else if (change == 1) {
+            if (currentIndex === optionsLength - 1) {
+                newIndex = 0;
+            }
+        }
+
+        this.setState({ selectedIndex: newIndex });
     }
 
     /*
@@ -154,22 +182,12 @@ class TimePicker extends React.Component {
                 return false;
 
             case 38: // up
-                var newIndex = 0;
-                if (typeof this.state.selectedIndex !== "undefined")
-                    newIndex = this.state.selectedIndex - 1;
-
-                this.setState({ selectedIndex: newIndex });
-
+                this.changeSelectedIndex(-1)
                 return false;
 
             case 40: // down
-                var newIndex = 0;
-                if (typeof this.state.selectedIndex !== "undefined")
-                    newIndex = this.state.selectedIndex + 1;
-
-                this.setState({ selectedIndex: newIndex });
-
-                return true;
+                this.changeSelectedIndex(1)
+                return false;
 
             case 9: //tab
                 this.close();
@@ -227,7 +245,7 @@ class TimePicker extends React.Component {
     }
 
     scrollToIndex() {
-        if (!this.state.selectedIndex)
+        if (typeof this.state.selectedIndex !== "number")
             return;
 
         var timeOptions = this.state.timeOptions.length;
@@ -244,9 +262,10 @@ class TimePicker extends React.Component {
     componentDidMount() {
 
         //this.setSelected();
-
         window.addEventListener("keydown", this.keydownhandler);
         window.addEventListener("keyup", this.keyuphandler);
+
+        this.scrollToIndex();
     }
 
     componentDidUpdate() {
