@@ -1,4 +1,9 @@
-var _lang = {
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+var lang = {
     am: 'am',
     pm: 'pm',
     AM: 'AM',
@@ -9,4 +14,4 @@ var _lang = {
     hrs: 'hrs'
 };
 
-export default _lang;
+exports.default = lang;

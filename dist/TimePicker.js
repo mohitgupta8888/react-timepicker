@@ -50,7 +50,6 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var globalSettings;
 
-var _ONE_DAY = 86400;
 var defaults = {
     className: null,
     maxTime: null,
@@ -62,32 +61,6 @@ var defaults = {
     useSelect: false,
     wrapHours: true
 };
-
-function roundingFunction(seconds, settings) {
-    if (seconds === null) {
-        return null;
-    } else if (typeof settings.step !== "number") {
-        // TODO: nearest fit irregular steps
-        return seconds;
-    } else {
-        var offset = seconds % (settings.step * 60); // step is in minutes
-
-        if (offset >= settings.step * 30) {
-            // if offset is larger than a half step, round up
-            seconds += settings.step * 60 - offset;
-        } else {
-            // round down
-            seconds -= offset;
-        }
-
-        return seconds % _ONE_DAY;
-    }
-}
-
-function _hideKeyboard(self) {
-    var settings = globalSettings;
-    return window.navigator.msMaxTouchPoints || 'ontouchstart' in document;
-}
 
 var TimePicker = function (_React$Component) {
     (0, _inherits3.default)(TimePicker, _React$Component);
@@ -103,75 +76,50 @@ var TimePicker = function (_React$Component) {
             (0, _assign2.default)(_Lang2.default, settings.lang);
         }
 
-        globalSettings = (0, _Settings._parseSettings)(settings);
+        globalSettings = (0, _Settings.parseSettings)(settings);
+
+        var timeOptions = _TimeParser2.default.prepareTimeOptions({ timeFormat: globalSettings.timeFormat, step: globalSettings.step, minTime: globalSettings.minTime, maxTime: globalSettings.maxTime });
+        if (props.value && !globalSettings.useSelect) {
+            //this.formatValue();
+            var defaultIndex = _this.getDefaultIndex(timeOptions, props.value);
+        }
 
         _this.state = {
             value: props.value,
-            open: props.open,
-            timeOptions: _this.prepareTimeOptions()
+            timeOptions: timeOptions
         };
 
-        if (!globalSettings.useSelect) {
-            //this._formatValue();
-        }
-
-        _this._keydownhandler = _this._keydownhandler.bind(_this);
-        _this._keyuphandler = _this._keyuphandler.bind(_this);
+        _this.keydownhandler = _this.keydownhandler.bind(_this);
+        _this.keyuphandler = _this.keyuphandler.bind(_this);
         return _this;
     }
 
     (0, _createClass3.default)(TimePicker, [{
-        key: 'prepareTimeOptions',
-        value: function prepareTimeOptions() {
+        key: 'getDefaultIndex',
+        value: function getDefaultIndex(timeOptions, timeString) {
+            if (timeString === "") {
+                return;
+            }
+
             var settings = globalSettings;
-
-            var start = settings.minTime !== null ? settings.minTime : 0;
-            var end = settings.maxTime !== null ? settings.maxTime : start + _ONE_DAY - 1;
-
-            if (end < start) {
-                // make sure the end time is greater than start time, otherwise there will be no list to show
-                end += _ONE_DAY;
-            }
-
-            var stepFunc = settings.step;
-            if (typeof stepFunc != 'function') {
-                stepFunc = function stepFunc() {
-                    return settings.step;
-                };
-            }
-
-            var timeOptions = [];
-
-            for (var i = start, j = 0; i <= end; j++, i += stepFunc(j) * 60) {
-                var timeInt = i;
-                var timeString = _TimeParser2.default._int2time(timeInt, settings);
-                timeOptions[j] = { index: j, timeInt: timeInt, timeString: timeString };
-            }
-
-            return timeOptions;
-        }
-    }, {
-        key: '_roundAndFormatTime',
-        value: function _roundAndFormatTime(seconds, settings) {
-            seconds = roundingFunction(seconds, settings);
-            if (seconds !== null) {
-                return _TimeParser2.default._int2time(seconds, settings);
-            }
+            var seconds = _TimeParser2.default.time2int(timeString, settings.wrapHours);
+            var selectedOption = this.findTimeOption(timeOptions, seconds);
+            if (selectedOption) return selectedOption.index;
         }
     }, {
         key: 'findTimeOption',
-        value: function findTimeOption(value) {
-            if (!value && value !== 0) {
+        value: function findTimeOption(timeOptions, timeInt) {
+            if (!timeInt && timeInt !== 0) {
                 return false;
             }
 
             var settings = globalSettings;
             var out = false;
-            var value = roundingFunction(value, settings);
+            var timeInt = _TimeParser2.default.roundingFunction(timeInt, settings.step);
 
             // loop through the menu items
-            this.state.timeOptions.every(function (timeOption, index) {
-                if (timeOption.timeInt == value) {
+            timeOptions.every(function (timeOption, index) {
+                if (timeOption.timeInt == timeInt) {
                     out = timeOption;
                     return false;
                 }
@@ -181,36 +129,28 @@ var TimePicker = function (_React$Component) {
             return out;
         }
     }, {
-        key: '_setSelected',
-        value: function _setSelected() {
+        key: 'setSelected',
+        value: function setSelected() {
 
-            var timeValue = _TimeParser2.default._time2int(this.state.value, globalSettings);
+            var timeValue = _TimeParser2.default.time2int(this.state.value, globalSettings.wrapHours);
             if (timeValue === null) {
                 return;
             }
 
-            var selected = this.findTimeOption(timeValue);
+            var selected = this.findTimeOption(this.state.timeOptions, timeValue);
             if (selected) {
-
-                // var topDelta = selected.offset().top - list.offset().top;
-
-                // if (topDelta + selected.outerHeight() > list.outerHeight() || topDelta < 0) {
-                //     list.scrollTop(list.scrollTop() + selected.position().top - selected.outerHeight());
-                // }
-
-                // selected.addClass('ui-timepicker-selected');
                 this.setState({ selectedIndex: selected.index });
             }
         }
     }, {
-        key: '_formatValue',
-        value: function _formatValue() {
+        key: 'formatValue',
+        value: function formatValue() {
             if (this.state.value === '') {
                 return;
             }
 
             var settings = globalSettings;
-            var seconds = _TimeParser2.default._time2int(this.state.value, settings);
+            var seconds = _TimeParser2.default.time2int(this.state.value, settings.wrapHours);
 
             if (seconds === null) {
                 if (this.props.timeFormatError) this.props.timeFormatError();
@@ -223,32 +163,32 @@ var TimePicker = function (_React$Component) {
                 rangeError = true;
             }
 
-            var prettyTime = _TimeParser2.default._int2time(seconds, settings);
+            var prettyTime = _TimeParser2.default.int2time(seconds, settings.timeFormat);
             if (rangeError) {
-                if (this._setTimeValue(prettyTime)) {
+                if (this.setTimeValue(prettyTime)) {
                     if (this.props.timeRangeError) this.props.timeRangeError();
                 }
             } else {
-                this._setTimeValue(prettyTime);
+                this.setTimeValue(prettyTime);
             }
         }
     }, {
-        key: '_setTimeValue',
-        value: function _setTimeValue(prettyTime) {
+        key: 'setTimeValue',
+        value: function setTimeValue(prettyTime) {
             if (this.props.onSelect) this.props.onSelect(prettyTime);
         }
     }, {
-        key: '_getSelectedIndexValue',
-        value: function _getSelectedIndexValue() {
+        key: 'getSelectedIndexValue',
+        value: function getSelectedIndexValue() {
             if (typeof this.state.selectedIndex === "undefined") return;
 
             return this.state.timeOptions[this.state.selectedIndex].timeString;
         }
     }, {
-        key: '_setSelectedIndexValue',
-        value: function _setSelectedIndexValue() {
-            var prettyTime = this._getSelectedIndexValue();
-            this._setTimeValue(prettyTime);
+        key: 'setSelectedIndexValue',
+        value: function setSelectedIndexValue() {
+            var prettyTime = this.getSelectedIndexValue();
+            this.setTimeValue(prettyTime);
         }
 
         /*
@@ -256,14 +196,14 @@ var TimePicker = function (_React$Component) {
         */
 
     }, {
-        key: '_keydownhandler',
-        value: function _keydownhandler(e) {
+        key: 'keydownhandler',
+        value: function keydownhandler(e) {
 
             switch (e.keyCode) {
 
                 case 13:
                     // return
-                    this._setSelectedIndexValue();
+                    this.setSelectedIndexValue();
 
                     e.preventDefault();
                     return false;
@@ -305,8 +245,8 @@ var TimePicker = function (_React$Component) {
         */
 
     }, {
-        key: '_keyuphandler',
-        value: function _keyuphandler(e) {
+        key: 'keyuphandler',
+        value: function keyuphandler(e) {
             var settings = globalSettings;
 
             switch (e.keyCode) {
@@ -339,7 +279,7 @@ var TimePicker = function (_React$Component) {
                 case 46:
                     // delete
                     if (settings.typeaheadHighlight) {
-                        this._setSelected();
+                        this.setSelected();
                     } else {
                         //list.hide();
                     }
@@ -363,47 +303,39 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'componentDidMount',
         value: function componentDidMount() {
-            // if (this.container)
-            //     this.container.focus();
 
-            this._setSelected();
+            //this.setSelected();
 
-            window.addEventListener("keydown", this._keydownhandler);
-            window.addEventListener("keyup", this._keyuphandler);
+            window.addEventListener("keydown", this.keydownhandler);
+            window.addEventListener("keyup", this.keyuphandler);
         }
     }, {
         key: 'componentDidUpdate',
         value: function componentDidUpdate() {
-            // if (this.container)
-            //     this.container.focus();
-            //this._setSelected();
             this.scrollToIndex();
         }
     }, {
         key: 'componentWillUnmount',
         value: function componentWillUnmount() {
-            var timeValue = _TimeParser2.default._time2int(this.state.value, globalSettings);
+            var timeValue = _TimeParser2.default.time2int(this.state.value, globalSettings.wrapHours);
             if (timeValue !== null) {
-                var prettyTime = _TimeParser2.default._int2time(timeValue, globalSettings);
-                this._setTimeValue(prettyTime);
+                var prettyTime = _TimeParser2.default.int2time(timeValue, globalSettings.timeFormat);
+                this.setTimeValue(prettyTime);
             }
 
-            window.removeEventListener("keydown", this._keydownhandler);
-            window.removeEventListener("keyup", this._keyuphandler);
+            window.removeEventListener("keydown", this.keydownhandler);
+            window.removeEventListener("keyup", this.keyuphandler);
         }
     }, {
         key: 'componentWillReceiveProps',
         value: function componentWillReceiveProps(nextProps) {
-            // if (this.state.open && !nextProps.open) {
-            //     //handle before close
-            // }
             // if (nextProps.value == "0524") {
             //     debugger;
             // }
-            var timeValue = _TimeParser2.default._time2int(nextProps.value, globalSettings);
-            var selectedTimeOption = this.findTimeOption(timeValue);
-            var selectedIndex = selectedTimeOption ? selectedTimeOption.index : 0;
-            this.setState({ value: nextProps.value, open: nextProps.open, selectedIndex: selectedIndex });
+            var timeValue = _TimeParser2.default.time2int(nextProps.value, globalSettings.wrapHours);
+            var selectedTimeOption = this.findTimeOption(this.state.timeOptions, timeValue);
+            var selectedIndex = selectedTimeOption ? selectedTimeOption.index : null;
+            this.setState({ value: nextProps.value, selectedIndex: selectedIndex });
         }
     }, {
         key: 'close',
@@ -415,8 +347,8 @@ var TimePicker = function (_React$Component) {
         value: function onTimeSelect(prettyTime, index) {
             var _this2 = this;
 
-            this.setState({ selectedIndex: index }, function () {
-                _this2._setTimeValue(prettyTime);
+            this.setState({ selectedIndex: index, value: prettyTime }, function () {
+                _this2.setTimeValue(prettyTime);
             });
         }
     }, {

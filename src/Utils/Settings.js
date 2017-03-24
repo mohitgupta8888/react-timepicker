@@ -1,4 +1,4 @@
-function _parseSettings(settings) {
+function parseSettings(settings) {
     if (typeof settings.step === "string" && !isNaN(settings.step)) {
         settings.step = parseInt(settings.step);
     }
@@ -24,4 +24,4 @@ function _parseSettings(settings) {
     return settings;
 }
 
-export {_parseSettings}
+export {parseSettings}

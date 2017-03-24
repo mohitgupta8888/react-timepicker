@@ -1,6 +1,8 @@
-import _lang from '../Lang'
+import lang from '../Lang'
 
-function _int2time(timeInt, settings) {
+var _ONE_DAY = 86400;
+
+function int2time(timeInt, timeFormat) {
     if (typeof timeInt != 'number') {
         return null;
     }
@@ -15,23 +17,23 @@ function _int2time(timeInt, settings) {
         return null;
     }
 
-    if (typeof (settings.timeFormat) === "function") {
-        return settings.timeFormat(time);
+    if (typeof (timeFormat) === "function") {
+        return timeFormat(time);
     }
 
     var output = '';
     var hour, code;
-    for (var i = 0; i < settings.timeFormat.length; i++) {
+    for (var i = 0; i < timeFormat.length; i++) {
 
-        code = settings.timeFormat.charAt(i);
+        code = timeFormat.charAt(i);
         switch (code) {
 
             case 'a':
-                output += (time.getHours() > 11) ? _lang.pm : _lang.am;
+                output += (time.getHours() > 11) ? lang.pm : lang.am;
                 break;
 
             case 'A':
-                output += (time.getHours() > 11) ? _lang.PM : _lang.AM;
+                output += (time.getHours() > 11) ? lang.PM : lang.AM;
                 break;
 
             case 'g':
@@ -74,7 +76,7 @@ function _int2time(timeInt, settings) {
             case '\\':
                 // escape character; add the next character and skip ahead
                 i++;
-                output += settings.timeFormat.charAt(i);
+                output += timeFormat.charAt(i);
                 break;
 
             default:
@@ -85,7 +87,7 @@ function _int2time(timeInt, settings) {
     return output;
 }
 
-function _time2int(timeString, settings) {
+function time2int(timeString, wrapHours) {
     if (timeString === '' || timeString === null) return null;
     if (typeof timeString == 'object') {
         return timeString.getHours() * 3600 + timeString.getMinutes() * 60 + timeString.getSeconds();
@@ -102,10 +104,10 @@ function _time2int(timeString, settings) {
     }
 
     var ampmRegex = '(' +
-        _lang.am.replace('.', '') + '|' +
-        _lang.pm.replace('.', '') + '|' +
-        _lang.AM.replace('.', '') + '|' +
-        _lang.PM.replace('.', '') + ')?';
+        lang.am.replace('.', '') + '|' +
+        lang.pm.replace('.', '') + '|' +
+        lang.AM.replace('.', '') + '|' +
+        lang.PM.replace('.', '') + ')?';
 
     // try to parse time input
     var pattern = new RegExp('^' + ampmRegex + '([0-9]?[0-9])\\W?([0-5][0-9])?\\W?([0-5][0-9])?' + ampmRegex + '$');
@@ -117,7 +119,7 @@ function _time2int(timeString, settings) {
 
     var hour = parseInt(time[2] * 1, 10);
     if (hour > 24) {
-        if (settings && settings.wrapHours === false) {
+        if (wrapHours === false) {
             return null;
         } else {
             hour = hour % 24;
@@ -128,7 +130,7 @@ function _time2int(timeString, settings) {
     var hours = hour;
 
     if (hour <= 12 && ampm) {
-        var isPm = (ampm == _lang.pm || ampm == _lang.PM);
+        var isPm = (ampm == lang.pm || ampm == lang.PM);
 
         if (hour == 12) {
             hours = isPm ? 12 : 0;
@@ -141,15 +143,57 @@ function _time2int(timeString, settings) {
     var seconds = (time[4] * 1 || 0);
     var timeInt = hours * 3600 + minutes * 60 + seconds;
 
-    // if no am/pm provided, intelligently guess based on the scrollDefault
-    if (hour < 12 && !ampm && settings && settings._twelveHourTime && settings.scrollDefault) {
-        var delta = timeInt - settings.scrollDefault();
-        if (delta < 0 && delta >= _ONE_DAY / -2) {
-            timeInt = (timeInt + (_ONE_DAY / 2)) % _ONE_DAY;
-        }
-    }
-
     return timeInt;
 }
 
-export default {_int2time, _time2int}
+function roundingFunction(seconds, step) {
+    if (seconds === null) {
+        return null;
+    } else if (typeof step !== "number") {
+        // TODO: nearest fit irregular steps
+        return seconds;
+    } else {
+        var offset = seconds % (step * 60); // step is in minutes
+
+        if (offset >= step * 30) {
+            // if offset is larger than a half step, round up
+            seconds += (step * 60) - offset;
+        } else {
+            // round down
+            seconds -= offset;
+        }
+
+        return seconds % _ONE_DAY;
+    }
+}
+
+function prepareTimeOptions(settings) {
+
+        var start = (settings.minTime !== null) ? settings.minTime : 0;
+        var end = (settings.maxTime !== null) ? settings.maxTime : (start + _ONE_DAY - 1);
+
+        if (end < start) {
+            // make sure the end time is greater than start time, otherwise there will be no list to show
+            end += _ONE_DAY;
+        }
+
+        var stepFunc = settings.step;
+        if (typeof stepFunc != 'function') {
+            stepFunc = function () {
+                return settings.step;
+            }
+        }
+
+        var timeOptions = [];
+
+        for (var i = start, j = 0; i <= end; j++ , i += stepFunc(j) * 60) {
+            var timeInt = i;
+            var timeString = int2time(timeInt, settings.timeFormat);
+            timeOptions[j] = { index: j, timeInt: timeInt, timeString: timeString };
+        }
+
+        return timeOptions;
+    }
+
+
+export default {int2time, time2int, roundingFunction, prepareTimeOptions}

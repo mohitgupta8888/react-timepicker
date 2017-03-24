@@ -1,12 +1,11 @@
 import React from 'react'
 import onClickOutside from 'react-onclickoutside'
-import {_parseSettings} from './Utils/Settings'
+import {parseSettings} from './Utils/Settings'
 import TimeParser from './Utils/TimeParser'
-import _lang from './Lang'
+import lang from './Lang'
 
 var globalSettings;
 
-var _ONE_DAY = 86400;
 var defaults = {
     className: null,
     maxTime: null,
@@ -19,105 +18,57 @@ var defaults = {
     wrapHours: true
 }
 
-function roundingFunction(seconds, settings) {
-    if (seconds === null) {
-        return null;
-    } else if (typeof settings.step !== "number") {
-        // TODO: nearest fit irregular steps
-        return seconds;
-    } else {
-        var offset = seconds % (settings.step * 60); // step is in minutes
-
-        if (offset >= settings.step * 30) {
-            // if offset is larger than a half step, round up
-            seconds += (settings.step * 60) - offset;
-        } else {
-            // round down
-            seconds -= offset;
-        }
-
-        return seconds % _ONE_DAY;
-    }
-}
-
-function _hideKeyboard(self) {
-    var settings = globalSettings;
-    return (window.navigator.msMaxTouchPoints || 'ontouchstart' in document);
-}
-
 class TimePicker extends React.Component {
     constructor(props) {
         super(props);
         var settings = Object.assign({}, defaults, props);
 
         if (settings.lang) {
-            Object.assign(_lang, settings.lang);
+            Object.assign(lang, settings.lang);
         }
 
-        globalSettings = _parseSettings(settings);
+        globalSettings = parseSettings(settings);
+
+        var timeOptions = TimeParser.prepareTimeOptions({ timeFormat: globalSettings.timeFormat, step: globalSettings.step, minTime: globalSettings.minTime, maxTime: globalSettings.maxTime })
+        if (props.value && !globalSettings.useSelect) {
+            //this.formatValue();
+            var defaultIndex = this.getDefaultIndex(timeOptions, props.value);
+        }
 
         this.state = {
             value: props.value,
-            open: props.open,
-            timeOptions: this.prepareTimeOptions()
+            timeOptions: timeOptions
         }
 
-        if (!globalSettings.useSelect) {
-            //this._formatValue();
-        }
-
-        this._keydownhandler = this._keydownhandler.bind(this);
-        this._keyuphandler = this._keyuphandler.bind(this);
+        this.keydownhandler = this.keydownhandler.bind(this);
+        this.keyuphandler = this.keyuphandler.bind(this);
     }
 
-    prepareTimeOptions() {
+    getDefaultIndex(timeOptions, timeString) {
+        if (timeString === "") {
+            return;
+        }
+
         var settings = globalSettings;
-
-        var start = (settings.minTime !== null) ? settings.minTime : 0;
-        var end = (settings.maxTime !== null) ? settings.maxTime : (start + _ONE_DAY - 1);
-
-        if (end < start) {
-            // make sure the end time is greater than start time, otherwise there will be no list to show
-            end += _ONE_DAY;
-        }
-
-        var stepFunc = settings.step;
-        if (typeof stepFunc != 'function') {
-            stepFunc = function () {
-                return settings.step;
-            }
-        }
-
-        var timeOptions = [];
-
-        for (var i = start, j = 0; i <= end; j++ , i += stepFunc(j) * 60) {
-            var timeInt = i;
-            var timeString = TimeParser._int2time(timeInt, settings);
-            timeOptions[j] = { index: j, timeInt: timeInt, timeString: timeString };
-        }
-
-        return timeOptions;
+        var seconds = TimeParser.time2int(timeString, settings.wrapHours);
+        var selectedOption = this.findTimeOption(timeOptions, seconds);
+        if (selectedOption)
+            return selectedOption.index;
     }
 
-    _roundAndFormatTime(seconds, settings) {
-        seconds = roundingFunction(seconds, settings);
-        if (seconds !== null) {
-            return TimeParser._int2time(seconds, settings);
-        }
-    }
 
-    findTimeOption(value) {
-        if (!value && value !== 0) {
+    findTimeOption(timeOptions, timeInt) {
+        if (!timeInt && timeInt !== 0) {
             return false;
         }
 
         var settings = globalSettings;
         var out = false;
-        var value = roundingFunction(value, settings);
+        var timeInt = TimeParser.roundingFunction(timeInt, settings.step);
 
         // loop through the menu items
-        this.state.timeOptions.every(function (timeOption, index) {
-            if (timeOption.timeInt == value) {
+        timeOptions.every(function (timeOption, index) {
+            if (timeOption.timeInt == timeInt) {
                 out = timeOption;
                 return false;
             }
@@ -127,35 +78,26 @@ class TimePicker extends React.Component {
         return out;
     }
 
-    _setSelected() {
+    setSelected() {
 
-        var timeValue = TimeParser._time2int(this.state.value, globalSettings);
+        var timeValue = TimeParser.time2int(this.state.value, globalSettings.wrapHours);
         if (timeValue === null) {
             return;
         }
 
-        var selected = this.findTimeOption(timeValue);
+        var selected = this.findTimeOption(this.state.timeOptions, timeValue);
         if (selected) {
-
-            // var topDelta = selected.offset().top - list.offset().top;
-
-            // if (topDelta + selected.outerHeight() > list.outerHeight() || topDelta < 0) {
-            //     list.scrollTop(list.scrollTop() + selected.position().top - selected.outerHeight());
-            // }
-
-            // selected.addClass('ui-timepicker-selected');
             this.setState({ selectedIndex: selected.index });
-
         }
     }
 
-    _formatValue() {
+    formatValue() {
         if (this.state.value === '') {
             return;
         }
 
         var settings = globalSettings;
-        var seconds = TimeParser._time2int(this.state.value, settings);
+        var seconds = TimeParser.time2int(this.state.value, settings.wrapHours);
 
         if (seconds === null) {
             if (this.props.timeFormatError)
@@ -170,43 +112,43 @@ class TimePicker extends React.Component {
             rangeError = true;
         }
 
-        var prettyTime = TimeParser._int2time(seconds, settings);
+        var prettyTime = TimeParser.int2time(seconds, settings.timeFormat);
         if (rangeError) {
-            if (this._setTimeValue(prettyTime)) {
+            if (this.setTimeValue(prettyTime)) {
                 if (this.props.timeRangeError)
                     this.props.timeRangeError();
             }
         } else {
-            this._setTimeValue(prettyTime);
+            this.setTimeValue(prettyTime);
         }
     }
 
-    _setTimeValue(prettyTime) {
+    setTimeValue(prettyTime) {
         if (this.props.onSelect)
             this.props.onSelect(prettyTime);
     }
 
-    _getSelectedIndexValue() {
+    getSelectedIndexValue() {
         if (typeof this.state.selectedIndex === "undefined")
             return;
 
         return ((this.state.timeOptions[this.state.selectedIndex]).timeString);
     }
 
-    _setSelectedIndexValue() {
-        var prettyTime = this._getSelectedIndexValue();
-        this._setTimeValue(prettyTime);
+    setSelectedIndexValue() {
+        var prettyTime = this.getSelectedIndexValue();
+        this.setTimeValue(prettyTime);
     }
 
     /*
     *  Keyboard navigation via arrow keys
     */
-    _keydownhandler(e) {
+    keydownhandler(e) {
 
         switch (e.keyCode) {
 
             case 13: // return
-                this._setSelectedIndexValue();
+                this.setSelectedIndexValue();
 
                 e.preventDefault();
                 return false;
@@ -244,7 +186,7 @@ class TimePicker extends React.Component {
     /*
     *	Time typeahead
     */
-    _keyuphandler(e) {
+    keyuphandler(e) {
         var settings = globalSettings;
 
         switch (e.keyCode) {
@@ -276,7 +218,7 @@ class TimePicker extends React.Component {
             case 8: // backspace
             case 46: // delete
                 if (settings.typeaheadHighlight) {
-                    this._setSelected();
+                    this.setSelected();
                 } else {
                     //list.hide();
                 }
@@ -300,44 +242,36 @@ class TimePicker extends React.Component {
     }
 
     componentDidMount() {
-        // if (this.container)
-        //     this.container.focus();
 
-        this._setSelected();
+        //this.setSelected();
 
-        window.addEventListener("keydown", this._keydownhandler);
-        window.addEventListener("keyup", this._keyuphandler);
+        window.addEventListener("keydown", this.keydownhandler);
+        window.addEventListener("keyup", this.keyuphandler);
     }
 
     componentDidUpdate() {
-        // if (this.container)
-        //     this.container.focus();
-        //this._setSelected();
         this.scrollToIndex();
     }
 
     componentWillUnmount() {
-        var timeValue = TimeParser._time2int(this.state.value, globalSettings);
+        var timeValue = TimeParser.time2int(this.state.value, globalSettings.wrapHours);
         if (timeValue !== null) {
-            var prettyTime = TimeParser._int2time(timeValue, globalSettings);
-            this._setTimeValue(prettyTime);
+            var prettyTime = TimeParser.int2time(timeValue, globalSettings.timeFormat);
+            this.setTimeValue(prettyTime);
         }
 
-        window.removeEventListener("keydown", this._keydownhandler);
-        window.removeEventListener("keyup", this._keyuphandler);
+        window.removeEventListener("keydown", this.keydownhandler);
+        window.removeEventListener("keyup", this.keyuphandler);
     }
 
     componentWillReceiveProps(nextProps) {
-        // if (this.state.open && !nextProps.open) {
-        //     //handle before close
-        // }
         // if (nextProps.value == "0524") {
         //     debugger;
         // }
-        var timeValue = TimeParser._time2int(nextProps.value, globalSettings);
-        var selectedTimeOption = this.findTimeOption(timeValue);
-        var selectedIndex = selectedTimeOption ? selectedTimeOption.index : 0;
-        this.setState({ value: nextProps.value, open: nextProps.open, selectedIndex: selectedIndex });
+        var timeValue = TimeParser.time2int(nextProps.value, globalSettings.wrapHours);
+        var selectedTimeOption = this.findTimeOption(this.state.timeOptions, timeValue);
+        var selectedIndex = selectedTimeOption ? selectedTimeOption.index : null;
+        this.setState({ value: nextProps.value, selectedIndex: selectedIndex });
     }
 
     close() {
@@ -346,8 +280,8 @@ class TimePicker extends React.Component {
     }
 
     onTimeSelect(prettyTime, index) {
-        this.setState({ selectedIndex: index }, () => {
-            this._setTimeValue(prettyTime)
+        this.setState({ selectedIndex: index, value: prettyTime }, () => {
+            this.setTimeValue(prettyTime)
         })
     }
 

@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-function _parseSettings(settings) {
+function parseSettings(settings) {
     if (typeof settings.step === "string" && !isNaN(settings.step)) {
         settings.step = parseInt(settings.step);
     }
@@ -29,4 +29,4 @@ function _parseSettings(settings) {
     return settings;
 }
 
-exports._parseSettings = _parseSettings;
+exports.parseSettings = parseSettings;
