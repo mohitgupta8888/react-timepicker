@@ -16,6 +16,7 @@
     "React",
     "Time Picker"
   ],
+  "main": "./dist/index.js",
   "author": "Mohit Gupta",
   "license": "MIT",
   "devDependencies": {
