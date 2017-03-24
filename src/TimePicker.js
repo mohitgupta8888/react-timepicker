@@ -317,6 +317,12 @@ class TimePicker extends React.Component {
     }
 
     componentWillUnmount() {
+        var timeValue = TimeParser._time2int(this.state.value, globalSettings);
+        if (timeValue !== null) {
+            var prettyTime = TimeParser._int2time(timeValue, globalSettings);
+            this._setTimeValue(prettyTime);
+        }
+
         window.removeEventListener("keydown", this._keydownhandler);
         window.removeEventListener("keyup", this._keyuphandler);
     }
@@ -324,6 +330,9 @@ class TimePicker extends React.Component {
     componentWillReceiveProps(nextProps) {
         // if (this.state.open && !nextProps.open) {
         //     //handle before close
+        // }
+        // if (nextProps.value == "0524") {
+        //     debugger;
         // }
         var timeValue = TimeParser._time2int(nextProps.value, globalSettings);
         var selectedTimeOption = this.findTimeOption(timeValue);

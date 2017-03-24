@@ -1,4 +1,8 @@
 function _parseSettings(settings) {
+    if (typeof settings.step === "string" && !isNaN(settings.step)) {
+        settings.step = parseInt(settings.step);
+    }
+
     if (settings.minTime) {
         settings.minTime = _time2int(settings.minTime);
     }

@@ -382,6 +382,12 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'componentWillUnmount',
         value: function componentWillUnmount() {
+            var timeValue = _TimeParser2.default._time2int(this.state.value, globalSettings);
+            if (timeValue !== null) {
+                var prettyTime = _TimeParser2.default._int2time(timeValue, globalSettings);
+                this._setTimeValue(prettyTime);
+            }
+
             window.removeEventListener("keydown", this._keydownhandler);
             window.removeEventListener("keyup", this._keyuphandler);
         }
@@ -390,6 +396,9 @@ var TimePicker = function (_React$Component) {
         value: function componentWillReceiveProps(nextProps) {
             // if (this.state.open && !nextProps.open) {
             //     //handle before close
+            // }
+            // if (nextProps.value == "0524") {
+            //     debugger;
             // }
             var timeValue = _TimeParser2.default._time2int(nextProps.value, globalSettings);
             var selectedTimeOption = this.findTimeOption(timeValue);
