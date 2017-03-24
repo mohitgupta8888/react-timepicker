@@ -36,10 +36,6 @@ var _reactOnclickoutside = require('react-onclickoutside');
 
 var _reactOnclickoutside2 = _interopRequireDefault(_reactOnclickoutside);
 
-var _timepicker = require('../css/timepicker.css');
-
-var _timepicker2 = _interopRequireDefault(_timepicker);
-
 var _Settings = require('./Utils/Settings');
 
 var _TimeParser = require('./Utils/TimeParser');
@@ -449,7 +445,9 @@ var TimePicker = function (_React$Component) {
     }, {
         key: 'handleClickOutside',
         value: function handleClickOutside(evt) {
-            // ..handling code goes here... 
+            // ..handling code goes here...
+            if (this.props.inputRef && evt.target.isSameNode(this.props.inputRef)) return;
+
             this.close();
         }
     }, {

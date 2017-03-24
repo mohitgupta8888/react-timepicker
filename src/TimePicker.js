@@ -1,6 +1,5 @@
 import React from 'react'
 import onClickOutside from 'react-onclickoutside'
-import Css from '../css/timepicker.css'
 import {_parseSettings} from './Utils/Settings'
 import TimeParser from './Utils/TimeParser'
 import _lang from './Lang'
@@ -368,7 +367,10 @@ class TimePicker extends React.Component {
     }
 
     handleClickOutside(evt) {
-        // ..handling code goes here... 
+        // ..handling code goes here...
+        if (this.props.inputRef && evt.target.isSameNode(this.props.inputRef))
+            return;
+
         this.close();
     }
 

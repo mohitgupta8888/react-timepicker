@@ -98,7 +98,8 @@ var TimePickerInput = function (_React$Component) {
                 onSelect: this.onTimeSelect.bind(this),
                 onClose: function onClose() {
                     _this2.setState({ open: false });
-                } });
+                },
+                inputRef: this.inputRef });
             return _react2.default.createElement(
                 'div',
                 null,
@@ -108,7 +109,10 @@ var TimePickerInput = function (_React$Component) {
                     onChange: this.inputChange,
                     onFocus: this.inputFocus,
                     onBlur: this.inputBlur,
-                    onKeyDown: this.keyDownHandler }),
+                    onKeyDown: this.keyDownHandler,
+                    ref: function ref(input) {
+                        return _this2.inputRef = input;
+                    } }),
                 timePicker
             );
         }

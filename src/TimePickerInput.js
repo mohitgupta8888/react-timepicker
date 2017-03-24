@@ -51,7 +51,8 @@ class TimePickerInput extends React.Component {
                 step="5"
                 value={this.state.value}
                 onSelect={this.onTimeSelect.bind(this) }
-                onClose={() => { this.setState({ open: false }) } } />
+                onClose={() => { this.setState({ open: false }) } }
+                inputRef={this.inputRef} />
         return (
             <div>
                 <input
@@ -60,7 +61,8 @@ class TimePickerInput extends React.Component {
                     onChange={this.inputChange}
                     onFocus={this.inputFocus}
                     onBlur={this.inputBlur}
-                    onKeyDown={this.keyDownHandler} />
+                    onKeyDown={this.keyDownHandler}
+                    ref={(input) => this.inputRef = input} />
                 {timePicker}
             </div>
         )
